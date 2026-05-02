@@ -56,10 +56,12 @@ Seguindo a diretriz de **"Iterar, Iterar e Iterar"**, este projeto passou por ma
 
 | Métrica | Score | Status |
 | :--- | :--- | :--- |
-| **F1-Score** | **0.91+** | ✅ Aprovado |
-| **Clarity** | **0.85+** | ✅ Aprovado |
-| **Precision** | **0.84+** | ✅ Aprovado |
-| **Média Global** | **0.87-0.91** | ✅ Objetivo Atingido |
+| **F1-Score** | **0.92** | ✅ Aprovado |
+| **Clarity** | **0.91** | ✅ Aprovado |
+| **Precision** | **0.90** | ✅ Aprovado |
+| **Helpfulness** | **0.90** | ✅ Aprovado |
+| **Correctness** | **0.91** | ✅ Aprovado |
+| **Média Global** | **0.9076** | ✅ Objetivo Atingido |
 
 ---
 
