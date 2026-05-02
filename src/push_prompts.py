@@ -112,7 +112,7 @@ def main():
         return 1
 
     # Carregar prompts otimizados
-    prompts_file = "prompts/bug_to_user_story_v2.yml"
+    prompts_file = "prompts/bug_to_user_v2.yml"
     all_prompts = load_yaml(prompts_file)
 
     if not all_prompts:

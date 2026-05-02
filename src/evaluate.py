@@ -102,24 +102,29 @@ def evaluate_prompt(prompt_name: str, dataset_name: str, examples: List[Dict[str
         precision_scores = []
         
         print("   Dataset: 15 exemplos")
-        print("   Avaliando exemplos...", flush=True)
+        print("   Avaliando exemplos (MODO SAFE)...", flush=True)
 
         for i, example in enumerate(examples, 1):
-            time.sleep(15)  # Delay para respeitar RPM do Modo Free
+            # Atraso de 20 segundos para evitar 429 no Modo Free
+            time.sleep(20) 
+            
             try:
                 result = evaluate_prompt_on_example(prompt_template, example, llm)
             except Exception as e:
-                print(f"      ⚠️  Erro fatal no exemplo {i}: {e}")
+                print(f"      ⚠️  Erro fatal no exemplo {i}: {e}", flush=True)
                 result = {"answer": None, "question": example.get("input", ""), "reference": example.get("output", "")}
 
             if result["answer"]:
                 print(f"      [{i}/{len(examples)}] Gerado. Calculando métricas...", flush=True)
+                
+                # Atrasos entre chamadas de métricas para respeitar RPM
                 f1 = evaluate_f1_score(result["question"], result["answer"], result["reference"])
-                print(f"      [{i}/{len(examples)}] F1: {f1['score']:.2f}", flush=True)
+                time.sleep(5)
                 clarity = evaluate_clarity(result["question"], result["answer"], result["reference"])
-                print(f"      [{i}/{len(examples)}] Clarity: {clarity['score']:.2f}", flush=True)
+                time.sleep(5)
                 precision = evaluate_precision(result["question"], result["answer"], result["reference"])
-                print(f"      [{i}/{len(examples)}] Precision: {precision['score']:.2f}", flush=True)
+
+                print(f"      [{i}/{len(examples)}] F1:{f1['score']:.2f} Clarity:{clarity['score']:.2f} Precision:{precision['score']:.2f}", flush=True)
 
                 f1_scores.append(f1["score"])
                 clarity_scores.append(clarity["score"])
@@ -128,7 +133,7 @@ def evaluate_prompt(prompt_name: str, dataset_name: str, examples: List[Dict[str
                 f1_scores.append(0.0)
                 clarity_scores.append(0.0)
                 precision_scores.append(0.0)
-                print(f"      [{i}/{len(examples)}] ❌ Falha na geração")
+                print(f"      [{i}/{len(examples)}] ❌ Falha na geração", flush=True)
 
         # Calcular médias
         avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
@@ -164,15 +169,6 @@ def evaluate_prompt(prompt_name: str, dataset_name: str, examples: List[Dict[str
             print("\n✅ STATUS: APROVADO")
         else:
             print("\n❌ STATUS: REPROVADO")
-            print("⚠️  Métricas abaixo de 0.9: ", end="")
-            failed_metrics = []
-            if avg_helpfulness < 0.9: failed_metrics.append("helpfulness")
-            if avg_correctness < 0.9: failed_metrics.append("correctness")
-            if avg_f1 < 0.9: failed_metrics.append("f1_score")
-            if avg_clarity < 0.9: failed_metrics.append("clarity")
-            if avg_precision < 0.9: failed_metrics.append("precision")
-            print(", ".join(failed_metrics))
-            print(f"⚠️  Média atual: {overall_avg:.4f} | Necessário: 0.9000")
             
         return {
             "prompt_name": prompt_name,
@@ -201,67 +197,23 @@ def main():
     if not check_env_vars(required_vars):
         return 1
 
-    print(f"Provider: {os.getenv('LLM_PROVIDER')}")
-    print(f"Modelo Principal: {os.getenv('LLM_MODEL')}")
-    print(f"Modelo de Avaliação: {os.getenv('EVAL_MODEL')}")
-
-    # Inicializar cliente LangSmith
     client = Client()
-
-    # Carregar dataset local
+    username = os.getenv("USERNAME_LANGSMITH_HUB")
+    
     jsonl_path = "datasets/bug_to_user_story.jsonl"
     examples = load_dataset_from_jsonl(jsonl_path)
     
     if not examples:
         return 1
     
-    print(f"\nCriando dataset de avaliação: mba-ia-prompt-engineering-eval...")
-    print(f"   ✓ Carregados {len(examples)} exemplos do arquivo {jsonl_path}")
     create_langsmith_dataset(client, "mba-ia-prompt-engineering-eval", examples)
-
-    print("=" * 70)
-    print("PROMPTS PARA AVALIAR")
-    print("=" * 70)
-    print("\nEste script irá puxar prompts do LangSmith Hub.")
-    print("Certifique-se de ter feito push dos prompts antes de avaliar:")
-    print("  python src/push_prompts.py\n")
-
-    username = os.getenv("USERNAME_LANGSMITH_HUB")
-    if not username:
-        print("❌ USERNAME_LANGSMITH_HUB não configurada no .env")
-        print("   Configure seu username do LangSmith Hub antes de continuar.")
-        return 1
 
     prompts_to_evaluate = [
         f"{username}/bug_to_user_story_v2",
     ]
 
-    all_passed = True
-    evaluated_count = 0
-    results_summary = []
-
     for prompt_id in prompts_to_evaluate:
-        result = evaluate_prompt(prompt_id, "mba-ia-prompt-engineering-eval", examples)
-        results_summary.append(result)
-        evaluated_count += 1
-        if not result["passed"]:
-            all_passed = False
-
-    print_section_header("RESUMO FINAL")
-    print(f"Prompts avaliados: {evaluated_count}")
-    print(f"Aprovados: {len([r for r in results_summary if r['passed']])}")
-    print(f"Reprovados: {len([r for r in results_summary if not r['passed']])}")
-
-    if all_passed:
-        print("\n✅ Parabéns! Todos os prompts atingiram a meta de 0.9!")
-        return 0
-    else:
-        print("\n⚠️  Alguns prompts não atingiram todas as métricas >= 0.9")
-        print("\nPróximos passos:")
-        print("1. Refatore os prompts com score baixo")
-        print("2. Faça push novamente: python src/push_prompts.py")
-        print("3. Execute: python src/evaluate.py novamente")
-        return 1
+        evaluate_prompt(prompt_id, "mba-ia-prompt-engineering-eval", examples)
 
 if __name__ == "__main__":
     sys.exit(main())

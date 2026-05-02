@@ -219,7 +219,8 @@ def get_llm(model: Optional[str] = None, temperature: float = 0.0):
         return ChatGoogleGenerativeAI(
             model=model_name,
             temperature=temperature,
-            google_api_key=api_key
+            google_api_key=api_key,
+            timeout=60  # Adicionado timeout de 60 segundos
         )
 
     else:
